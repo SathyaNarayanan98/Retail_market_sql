@@ -704,3 +704,5 @@ SELECT ROUND(SUM(p.payment_value),2) AS total_amount FROM `extended-ripple-38650
 JOIN `extended-ripple-386509.Target.orders` AS o ON c.customer_id = o.customer_id
 JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
 WHERE o.order_purchase_timestamp BETWEEN "2018-01-01 00:00:00" AND "2018-10-31 23:59:59"
+
+-- End
