@@ -1,0 +1,706 @@
+Q1. -- Data type of columns in a table
+SELECT
+  * EXCEPT (schema_owner)
+FROM
+  INFORMATION_SCHEMA.SCHEMATA;
+
+SELECT * FROM `Target`.INFORMATION_SCHEMA.TABLES;
+
+SELECT * FROM `Target`.INFORMATION_SCHEMA.TABLES
+WHERE table_name = "customers";
+
+SELECT column_name, data_type, FROM `extended-ripple-386509.Target`.INFORMATION_SCHEMA.COLUMNS
+-- This will give the data_type for all the columns.
+
+SELECT column_name, data_type, FROM `extended-ripple-386509.Target`.INFORMATION_SCHEMA.COLUMNS
+WHERE table_name = "customers"
+
+
+Q2. -- Time period for which the data is given
+
+
+SELECT * FROM `extended-ripple-386509.Target.order_items`
+LIMIT 10
+
+SELECT MIN(shipping_limit_date) AS old, MAX(shipping_limit_date) AS latest FROM `extended-ripple-386509.Target.order_items`
+
+
+SELECT * FROM `extended-ripple-386509.Target.orders`
+LIMIT 10
+
+SELECT MIN(order_purchase_timestamp) AS first_order, MAX(order_purchase_timestamp) AS last_order, 
+      MIN(order_approved_at) AS first_approved, MAX(order_approved_at) AS last_approved,
+      MIN(order_delivered_carrier_date) AS first_del_car, MAX(order_delivered_carrier_date) AS last_del_car,
+      MIN(order_delivered_customer_date) AS first_del_cx, MAX(order_delivered_customer_date) AS last_del_cx, 
+      MIN(order_estimated_delivery_date) AS first_eta, MAX(order_estimated_delivery_date) AS last_eta
+FROM `extended-ripple-386509.Target.orders`
+
+SELECT EXTRACT (YEAR FROM order_purchase_timestamp AT TIME ZONE "UTC") as year FROM `extended-ripple-386509.Target.orders`
+
+
+
+SELECT * FROM `extended-ripple-386509.Target.order_reviews`
+LIMIT 5
+
+SELECT MIN(review_creation_date) AS old_review, MAX(review_creation_date) AS new_review, 
+       MIN(review_answer_timestamp) AS old_ans, MAX(review_answer_timestamp) AS new_ans 
+FROM `extended-ripple-386509.Target.order_reviews`
+
+SELECT EXTRACT (YEAR FROM review_creation_date AT TIME ZONE "UTC") AS year FROM `extended-ripple-386509.Target.order_reviews`
+
+
+Q3. -- Cities and States of customers ordered during the given period
+
+SELECT * FROM `extended-ripple-386509.Target.orders`
+LIMIT 7
+
+SELECT * FROM `extended-ripple-386509.Target.customers`
+LIMIT 7
+
+SELECT * FROM `extended-ripple-386509.Target.orders`
+WHERE order_purchase_timestamp  IS NULL
+
+SELECT * FROM `extended-ripple-386509.Target.orders`
+WHERE customer_id  IS NULL
+
+SELECT COUNT( DISTINCT customer_id)FROM `extended-ripple-386509.Target.orders` 
+
+SELECT COUNT( DISTINCT customer_id)FROM `extended-ripple-386509.Target.customers`
+
+SELECT COUNT( DISTINCT c.customer_id)FROM `extended-ripple-386509.Target.orders` AS o 
+JOIN `extended-ripple-386509.Target.customers` AS c ON o.customer_id = c.customer_id
+
+
+SELECT g.geolocation_city, g.geolocation_state FROM `extended-ripple-386509.Target.orders` AS o
+JOIN `extended-ripple-386509.Target.customers` AS c ON o.customer_id = c.customer_id
+JOIN `extended-ripple-386509.Target.geolocation` AS g ON c.customer_zip_code_prefix = g.geolocation_zip_code_prefix
+
+
+SELECT  DISTINCT g.geolocation_city AS city, g.geolocation_state AS state
+FROM `extended-ripple-386509.Target.orders` AS o
+JOIN `extended-ripple-386509.Target.customers` AS c ON o.customer_id = c.customer_id
+JOIN `extended-ripple-386509.Target.geolocation` AS g ON c.customer_zip_code_prefix = g.geolocation_zip_code_prefix
+GROUP BY g.geolocation_city, g.geolocation_state
+ORDER BY g.geolocation_city
+
+-- The above query will give cities and states of customers ordered during the given period. There are only 27 states it total and customers have ordered
+-- from all the states but not from all the cities. So, the below query gives the cities where customers have ordered.
+
+
+
+SELECT DISTINCT geolocation_city 
+FROM `extended-ripple-386509.Target.geolocation`
+WHERE geolocation_city NOT IN( SELECT  DISTINCT g.geolocation_city AS city
+FROM `extended-ripple-386509.Target.orders` AS o
+JOIN `extended-ripple-386509.Target.customers` AS c ON o.customer_id = c.customer_id
+JOIN `extended-ripple-386509.Target.geolocation` AS g ON c.customer_zip_code_prefix = g.geolocation_zip_code_prefix
+GROUP BY g.geolocation_city, g.geolocation_state)
+ORDER BY geolocation_city
+
+SELECT  DISTINCT g.geolocation_state AS state
+FROM `extended-ripple-386509.Target.orders` AS o
+JOIN `extended-ripple-386509.Target.customers` AS c ON o.customer_id = c.customer_id
+JOIN `extended-ripple-386509.Target.geolocation` AS g ON c.customer_zip_code_prefix = g.geolocation_zip_code_prefix
+GROUP BY g.geolocation_city, g.geolocation_state
+ORDER BY g.geolocation_state
+
+
+SELECT (COUNT( DISTINCT geolocation_city)) FROM `extended-ripple-386509.Target.geolocation`
+
+SELECT (COUNT( DISTINCT geolocation_state)) FROM `extended-ripple-386509.Target.geolocation`
+
+
+Q4. -- In-depth Exploration:Is there a growing trend on e-commerce in Brazil? How can we describe a complete scenario? 
+    -- Can we see some seasonality with peaks at specific months?
+
+
+  SELECT * FROM `extended-ripple-386509.Target.customers`
+  LIMIT 10
+
+
+SELECT * FROM `extended-ripple-386509.Target.payments`
+LIMIT 50
+
+
+SELECT * FROM `extended-ripple-386509.Target.payments`
+WHERE payment_type = "not_defined"
+
+
+SELECT c.customer_id, SUM(p.payment_value) AS total_amount FROM `extended-ripple-386509.Target.customers` AS c
+JOIN `extended-ripple-386509.Target.orders` AS o ON c.customer_id = o.customer_id
+JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+WHERE p.payment_type <> "not_defined"
+GROUP BY c.customer_id
+
+
+SELECT c.customer_unique_id, o.order_purchase_timestamp, p.payment_value FROM `extended-ripple-386509.Target.customers` AS c
+JOIN `extended-ripple-386509.Target.orders` AS o ON c.customer_id = o.customer_id
+JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+WHERE p.payment_type <> "not_defined"
+
+
+
+SELECT c.customer_id,o.order_purchase_timestamp, SUM(p.payment_value) AS total_amount FROM `extended-ripple-386509.Target.customers` AS c
+JOIN `extended-ripple-386509.Target.orders` AS o ON c.customer_id = o.customer_id
+JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+WHERE p.payment_type <> "not_defined"
+GROUP BY c.customer_id, o.order_purchase_timestamp
+ORDER BY o.order_purchase_timestamp
+
+WITH CTE AS (SELECT EXTRACT (YEAR FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as year,
+o.order_purchase_timestamp, SUM(p.payment_value) AS total_amount FROM `extended-ripple-386509.Target.customers` AS c
+JOIN `extended-ripple-386509.Target.orders` AS o ON c.customer_id = o.customer_id
+JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+WHERE p.payment_type <> "not_defined"
+GROUP BY o.order_purchase_timestamp
+ORDER BY o.order_purchase_timestamp)
+
+SELECT year, SUM(total_amount) FROM CTE 
+GROUP BY year
+ORDER BY year
+
+WITH CTE AS (SELECT EXTRACT (YEAR FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as year, 
+             EXTRACT (MONTH FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as month,
+o.order_purchase_timestamp, SUM(p.payment_value) AS total_amount FROM `extended-ripple-386509.Target.customers` AS c
+JOIN `extended-ripple-386509.Target.orders` AS o ON c.customer_id = o.customer_id
+JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+WHERE p.payment_type <> "not_defined"
+GROUP BY o.order_purchase_timestamp
+ORDER BY o.order_purchase_timestamp)
+
+SELECT year, month, ROUND(SUM(total_amount),2) AS total_sales FROM CTE 
+GROUP BY year, month
+ORDER BY year ASC, month ASC
+
+
+WITH CTE AS (SELECT EXTRACT (YEAR FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as year, 
+             EXTRACT (MONTH FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as month,
+o.order_purchase_timestamp, SUM(p.payment_value) AS total_amount FROM `extended-ripple-386509.Target.customers` AS c
+JOIN `extended-ripple-386509.Target.orders` AS o ON c.customer_id = o.customer_id
+JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+WHERE p.payment_type <> "not_defined"
+GROUP BY o.order_purchase_timestamp
+ORDER BY o.order_purchase_timestamp)
+
+SELECT year, month, ROUND(SUM(total_amount),2) AS total_sales FROM CTE 
+GROUP BY year, month
+ORDER BY total_sales DESC
+
+SELECT EXTRACT(YEAR FROM order_purchase_timestamp AT TIME ZONE "UTC") AS year, 
+       EXTRACT(MONTH FROM order_purchase_timestamp AT TIME ZONE "UTC") AS month,
+       COUNT(*) AS number_of_orders 
+       FROM `extended-ripple-386509.Target.orders`
+       GROUP BY month, year
+       ORDER BY number_of_orders DESC
+
+FROM `extended-ripple-386509.Target.customers`
+
+
+-- What time do Brazilian customers tend to buy (Dawn, Morning, Afternoon or Night)?
+
+
+SELECT COUNT( DISTINCT order_id) AS Dawn
+       FROM `extended-ripple-386509.Target.orders`
+       WHERE EXTRACT (TIME FROM order_purchase_timestamp AT TIME ZONE "UTC") BETWEEN '00:00:00' AND '05:59:59'
+
+
+SELECT COUNT(DISTINCT order_id) AS Morning
+       FROM `extended-ripple-386509.Target.orders`
+       WHERE EXTRACT (TIME FROM order_purchase_timestamp AT TIME ZONE "UTC") BETWEEN '06:00:00' AND '11:59:59'
+
+
+
+SELECT COUNT(DISTINCT order_id) AS Afternoon
+       FROM `extended-ripple-386509.Target.orders`
+       WHERE EXTRACT (TIME FROM order_purchase_timestamp AT TIME ZONE "UTC") BETWEEN '12:00:00' AND '17:59:59'
+
+
+SELECT COUNT(DISTINCT order_id) AS Night
+       FROM `extended-ripple-386509.Target.orders`
+       WHERE EXTRACT (TIME FROM order_purchase_timestamp AT TIME ZONE "UTC") BETWEEN '19:00:00' AND '23:59:59'
+
+
+SELECT CASE  
+       WHEN EXTRACT (HOUR FROM order_purchase_timestamp) BETWEEN 0 AND 6 THEN "Dawn"
+       WHEN EXTRACT (HOUR FROM order_purchase_timestamp) BETWEEN 7 AND 12 THEN "Morning"
+       WHEN EXTRACT (HOUR FROM order_purchase_timestamp) BETWEEN 13 AND 18 THEN "Afternoon"
+       WHEN EXTRACT (HOUR FROM order_purchase_timestamp) BETWEEN 19 AND 23 THEN "Night"
+       END AS time_of_day, 
+       COUNT (*) AS num_of_orders
+       FROM `extended-ripple-386509.Target.orders`
+       GROUP BY time_of_day
+
+
+-- Evolution of E-commerce orders in the Brazil region:
+---Get month on month orders by states
+
+SELECT * FROM `extended-ripple-386509.Target.order_items`
+LIMIT 100
+
+SELECT EXTRACT (YEAR FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as year, 
+             EXTRACT (MONTH FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as month,
+c.customer_state, COUNT(*) AS num_of_orders FROM `extended-ripple-386509.Target.customers` AS c
+JOIN `extended-ripple-386509.Target.orders` AS o ON c.customer_id = o.customer_id
+JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+GROUP BY month, year, c.customer_state
+ORDER BY num_of_orders DESC
+
+
+SELECT DISTINCT customer_state FROM (SELECT EXTRACT (YEAR FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as year, 
+             EXTRACT (MONTH FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as month,
+c.customer_state, COUNT(*) AS num_of_orders FROM `extended-ripple-386509.Target.customers` AS c
+JOIN `extended-ripple-386509.Target.orders` AS o ON c.customer_id = o.customer_id
+JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+GROUP BY month, year, c.customer_state)
+WHERE num_of_orders = 1
+
+SELECT DISTINCT customer_state FROM `extended-ripple-386509.Target.customers`
+
+-- Finding the month and year of the state when the sales is Maximum. Here RR is the state and Max sale was done on Mar 2018 -- $2643.64
+
+
+WITH CTE AS (SELECT EXTRACT (YEAR FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as year, 
+             EXTRACT (MONTH FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as month,
+o.order_purchase_timestamp,c.customer_state, SUM(p.payment_value) AS total_amount FROM `extended-ripple-386509.Target.customers` AS c
+JOIN `extended-ripple-386509.Target.orders` AS o ON c.customer_id = o.customer_id
+JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+GROUP BY o.order_purchase_timestamp, c.customer_state
+ORDER BY o.order_purchase_timestamp), 
+CTE2 AS (
+SELECT customer_state, year, month, ROUND(SUM(total_amount),2) AS total_sales FROM CTE 
+WHERE customer_state = "RR"
+GROUP BY year, month, customer_state
+ORDER BY year, month, customer_state)
+
+SELECT customer_state, year, month, 
+       MAX(total_sales) AS max_total_sales
+       FROM CTE2
+       GROUP BY customer_state, year, month
+
+
+WITH CTE AS (SELECT EXTRACT (YEAR FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as year, 
+             EXTRACT (MONTH FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as month,
+o.order_purchase_timestamp,c.customer_state, SUM(p.payment_value) AS total_amount FROM `extended-ripple-386509.Target.customers` AS c
+JOIN `extended-ripple-386509.Target.orders` AS o ON c.customer_id = o.customer_id
+JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+GROUP BY o.order_purchase_timestamp, c.customer_state
+ORDER BY o.order_purchase_timestamp),
+
+CTE2 AS (SELECT customer_state, year, month, ROUND(SUM(total_amount),2) AS total_sales FROM CTE 
+GROUP BY year, month, customer_state
+ORDER BY year, month, customer_state)
+
+SELECT customer_state, 
+       MAX(total_sales) AS max_total_sales
+       FROM CTE2
+       
+
+
+-- Distribution of customers across the states in Brazil
+
+SELECT customer_state, COUNT(customer_unique_id) AS cx_each_state FROM `extended-ripple-386509.Target.customers`
+GROUP BY customer_state
+ORDER BY cx_each_state DESC
+
+-- Trying to find the relation between population and  total_sales. 
+
+WITH CTE AS (SELECT EXTRACT (YEAR FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as year, 
+             EXTRACT (MONTH FROM o.order_purchase_timestamp AT TIME ZONE "UTC") as month,
+o.order_purchase_timestamp,c.customer_state, SUM(p.payment_value) AS total_amount FROM `extended-ripple-386509.Target.customers` AS c
+JOIN `extended-ripple-386509.Target.orders` AS o ON c.customer_id = o.customer_id
+JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+GROUP BY o.order_purchase_timestamp, c.customer_state
+ORDER BY o.order_purchase_timestamp),
+
+CTE2 AS (SELECT customer_state, year, month, ROUND(SUM(total_amount),2) AS total_sales FROM CTE 
+GROUP BY year, month, customer_state
+ORDER BY year, month, customer_state)
+
+SELECT customer_state, 
+       ROUND(SUM(total_sales),2) AS sum_total_sales
+       FROM CTE2
+       GROUP BY customer_state
+       ORDER BY sum_total_sales DESC
+
+-- Impact on Economy: Analyze the money movement by e-commerce by looking at order prices, freight and others.
+-- Get % increase in cost of orders from 2017 to 2018 (include months between Jan to Aug only) - You can use “payment_value” column in payments table
+
+SELECT * FROM `extended-ripple-386509.Target.payments`
+LIMIT 50
+
+SELECT ot.order_id, ot.order_item_id, ot.price, ot.freight_value, p.payment_value FROM `extended-ripple-386509.Target.order_items` AS ot
+JOIN `extended-ripple-386509.Target.payments` AS p ON ot.order_id = p.order_id
+
+
+
+SELECT ot.order_id, ot.order_item_id, o.order_purchase_timestamp, ot.price, ot.freight_value, p.payment_value FROM `extended-ripple-386509.Target.order_items` AS ot
+JOIN `extended-ripple-386509.Target.orders` AS o ON  ot.order_id = o.order_id
+JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+WHERE o.order_purchase_timestamp BETWEEN "2017-01-01" AND "2017-08-31" OR 
+      o.order_purchase_timestamp BETWEEN "2018-01-01" AND "2018-08-31"
+
+
+WITH order_costs AS (
+  SELECT ot.order_id, ot.order_item_id, o.order_purchase_timestamp, ot.price, ot.freight_value, p.payment_value
+  FROM `extended-ripple-386509.Target.order_items` AS ot
+  JOIN `extended-ripple-386509.Target.orders` AS o ON ot.order_id = o.order_id
+  JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+  WHERE (o.order_purchase_timestamp BETWEEN "2017-01-01" AND "2017-08-31")
+     OR (o.order_purchase_timestamp BETWEEN "2018-01-01" AND "2018-08-31")
+)
+SELECT 
+  2018 AS year,
+  "Jan-Aug" AS months,
+  ROUND(SUM(payment_value),2) AS total_cost_2018,
+  (SUM(payment_value) - (SELECT SUM(payment_value) FROM order_costs WHERE EXTRACT(YEAR FROM order_purchase_timestamp) = 2017)) /
+  (SELECT ROUND(SUM(payment_value),2) FROM order_costs WHERE EXTRACT(YEAR FROM order_purchase_timestamp) = 2017)*100 AS cost_increase_percentage
+FROM order_costs
+WHERE EXTRACT(YEAR FROM order_purchase_timestamp) = 2018
+GROUP BY year, months;
+
+
+
+WITH order_costs AS (SELECT EXTRACT(MONTH FROM order_purchase_timestamp) AS month, 
+  EXTRACT(YEAR FROM order_purchase_timestamp) AS year,  p.payment_value
+  FROM `extended-ripple-386509.Target.order_items` AS ot
+  JOIN `extended-ripple-386509.Target.orders` AS o ON ot.order_id = o.order_id
+  JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+  WHERE (o.order_purchase_timestamp BETWEEN "2017-01-01" AND "2017-08-31")
+), 
+payments2017 AS (SELECT 
+  month,  ROUND(SUM(payment_value),2) AS payments_2017 FROM order_costs AS T1
+GROUP BY year, month ), 
+
+order_costs1 AS (SELECT EXTRACT(MONTH FROM order_purchase_timestamp) AS month1, 
+  EXTRACT(YEAR FROM order_purchase_timestamp) AS year1,  p.payment_value
+  FROM `extended-ripple-386509.Target.order_items` AS ot
+  JOIN `extended-ripple-386509.Target.orders` AS o ON ot.order_id = o.order_id
+  JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+  WHERE (o.order_purchase_timestamp BETWEEN "2018-01-01" AND "2018-08-31")
+), 
+payments2018 AS (SELECT 
+  month1,  ROUND(SUM(payment_value),2) AS payments_2018 FROM order_costs1 AS T2
+GROUP BY year1, month1 ), FINAL AS (
+SELECT p2017.month, p2017.payments_2017, p2018.payments_2018, 
+ROUND((((p2018.payments_2018 - p2017.payments_2017) / p2017.payments_2017) * 100),2) AS percentage_increase FROM payments2017 AS p2017
+JOIN payments2018 AS p2018 ON p2017.month = p2018.month1
+ORDER BY p2017.month)
+
+SELECT AVG(percentage_increase) AS percentincrease FROM FINAL
+
+
+
+WITH CTE1 AS
+(SELECT * 
+       FROM `extended-ripple-386509.Target.orders` AS o 
+       JOIN `extended-ripple-386509.Target.payments`AS p
+       ON o.order_id = p.order_id
+       WHERE
+        EXTRACT(YEAR FROM o.order_purchase_timestamp) BETWEEN 2017 AND 2018 AND
+        EXTRACT(MONTH FROM o.order_purchase_timestamp) BETWEEN 1 AND 8 ),
+CTE2 AS 
+  (SELECT 
+     EXTRACT(YEAR FROM order_purchase_timestamp) AS year, 
+     SUM(payment_value) AS cost
+     FROM CTE1 
+     GROUP BY year
+     ORDER BY year)
+SELECT CTE2.*,
+    (cost - LAG(cost, 1) OVER(ORDER BY year))*100 / LAG(cost, 1) OVER(ORDER BY year) AS percent_increase
+    FROM CTE2
+
+
+SELECT * FROM `extended-ripple-386509.Target.orders`
+LIMIT 5
+
+-- Mean & Sum of price and freight value by customer state
+-- To find this, I’m using the order_items table. 
+SELECT * FROM `extended-ripple-386509.Target.order_items`
+LIMIT 50
+
+SELECT c.customer_state, ROUND(SUM(ot.price),2) AS sum_ot_price, ROUND((SUM(ot.price)/COUNT(DISTINCT o.order_id)),2)  AS avg_ot_price,
+       ROUND(SUM(ot.freight_value),2) AS sum_ot_fv, ROUND((SUM(ot.freight_value)/COUNT(DISTINCT o.order_id)),2) AS avg_ot_fv
+FROM `extended-ripple-386509.Target.order_items` AS ot 
+JOIN `extended-ripple-386509.Target.orders`AS o ON ot.order_id = o.order_id 
+JOIN `extended-ripple-386509.Target.customers` AS c ON o.customer_id = c.customer_id
+GROUP BY c.customer_state 
+ORDER BY sum_ot_price DESC , avg_ot_price, sum_ot_fv , avg_ot_fv 
+
+-- 5. Analysis on sales, freight and delivery time
+-- Calculate days between purchasing, delivering and estimated delivery
+
+WITH CTE1 AS (SELECT order_purchase_timestamp, order_delivered_customer_date,
+order_estimated_delivery_date FROM `extended-ripple-386509.Target.orders`
+WHERE order_delivered_customer_date IS NOT NULL AND
+order_estimated_delivery_date IS NOT NULL),
+CTE2 AS (SELECT * FROM CTE1 AS T1)
+SELECT *,
+DATE_DIFF(order_delivered_customer_date, order_purchase_timestamp, DAY) AS time_to_delivery,
+DATE_DIFF(order_estimated_delivery_date, order_purchase_timestamp,) AS day_bw_order_est,
+DATE_DIFF(order_delivered_customer_date, order_estimated_delivery_date, DAY) AS diff_estimated_delivery FROM CTE2
+ORDER BY diff_estimated_delivery
+
+
+
+---Find time_to_delivery & diff_estimated_delivery. Formula for the same given below:
+
+---time_to_delivery = order_delivered_customer_date-order_purchase_timestamp
+
+-- diff_estimated_delivery = order_estimated_delivery_date-order_delivered_customer_date
+
+WITH CTE1 AS (SELECT order_purchase_timestamp, order_delivered_customer_date, 
+order_estimated_delivery_date FROM `extended-ripple-386509.Target.orders`
+WHERE order_delivered_customer_date IS NOT NULL AND 
+order_estimated_delivery_date IS NOT NULL
+),
+
+CTE2 AS (SELECT * FROM CTE1 AS T1
+)
+SELECT *,
+DATE_DIFF(order_delivered_customer_date, order_purchase_timestamp, DAY) AS time_to_delivery FROM CTE2
+
+
+
+WITH CTE1 AS (SELECT order_purchase_timestamp, order_delivered_customer_date,
+order_estimated_delivery_date FROM `extended-ripple-386509.Target.orders`
+WHERE order_delivered_customer_date IS NOT NULL AND
+order_estimated_delivery_date IS NOT NULL),
+CTE2 AS (SELECT * FROM CTE1 AS T1)
+SELECT *,
+DATE_DIFF(order_delivered_customer_date, order_purchase_timestamp, DAY) AS time_to_delivery,
+DATE_DIFF (order_delivered_customer_date, order_estimated_delivery_date, DAY) AS diff_estimated_delivery FROM CTE2
+ORDER BY diff_estimated_delivery
+
+
+--- reduced one CTE . Removed CTE2 from the above query and find the count of orders which was not delivered within the 
+--- promised time frame.
+
+WITH CTE1 AS (SELECT order_purchase_timestamp, order_delivered_customer_date, 
+order_estimated_delivery_date FROM `extended-ripple-386509.Target.orders`
+WHERE order_delivered_customer_date IS NOT NULL AND 
+order_estimated_delivery_date IS NOT NULL),
+CTE2 AS (SELECT *,
+DATE_DIFF(order_delivered_customer_date, order_purchase_timestamp, DAY) AS time_to_delivery,
+DATE_DIFF (order_delivered_customer_date, order_estimated_delivery_date, DAY) AS diff_estimated_delivery FROM CTE1
+ORDER BY diff_estimated_delivery) 
+
+SELECT COUNT(*) AS delivered_within_timeframe FROM CTE2 
+WHERE diff_estimated_delivery > 0
+
+-- If an item is delivered within the timeframe, how does the state perform? 
+-- By taking the average timeframe of each state, we can see if it is affecting the sales or not.
+
+
+WITH CTE1 AS (SELECT customer_id,order_purchase_timestamp, order_delivered_customer_date, 
+order_estimated_delivery_date FROM `extended-ripple-386509.Target.orders`
+WHERE order_delivered_customer_date IS NOT NULL AND 
+order_estimated_delivery_date IS NOT NULL),
+CTE2 AS (SELECT *,
+DATE_DIFF(order_delivered_customer_date, order_purchase_timestamp, DAY) AS time_to_delivery,
+DATE_DIFF (order_delivered_customer_date, order_estimated_delivery_date, DAY) AS diff_estimated_delivery FROM CTE1) 
+
+SELECT c.customer_state, ROUND(AVG(CTE2.time_to_delivery),2) AS avg_del_date , 
+ROUND(AVG(CTE2.diff_estimated_delivery),2) AS avg_delay_del_date FROM CTE2 
+JOIN `extended-ripple-386509.Target.customers` AS c ON CTE2.customer_id = c.customer_id
+GROUP BY c.customer_state
+ORDER BY avg_delay_del_date
+
+-- Group data by state, take mean of freight_value, time_to_delivery, diff_estimated_delivery
+
+
+WITH CTE1 AS (SELECT customer_id,order_id, order_purchase_timestamp, order_delivered_customer_date, 
+order_estimated_delivery_date FROM `extended-ripple-386509.Target.orders`
+WHERE order_delivered_customer_date IS NOT NULL AND 
+order_estimated_delivery_date IS NOT NULL),
+CTE2 AS (SELECT *,
+DATE_DIFF(order_delivered_customer_date, order_purchase_timestamp, DAY) AS time_to_delivery,
+DATE_DIFF (order_delivered_customer_date, order_estimated_delivery_date, DAY) AS diff_estimated_delivery FROM CTE1 AS T1) 
+
+SELECT c.customer_state,ROUND(AVG(freight_value),2) AS avg_ot_fv,
+ ROUND(AVG(CTE2.time_to_delivery),2) AS avg_time_to_delivery , 
+ROUND(AVG(CTE2.diff_estimated_delivery),2) AS avg_diff_estimated_delivery FROM `extended-ripple-386509.Target.customers` AS c
+JOIN CTE2 ON CTE2.customer_id = c.customer_id
+JOIN `extended-ripple-386509.Target.order_items` AS ot ON CTE2.order_id = ot.order_id
+GROUP BY c.customer_state
+ORDER BY avg_ot_fv DESC
+
+-- Sort the data to get the following:
+--Top 5 states with highest/lowest average freight value - sort in desc/asc limit 5
+
+-- Top 5 states with highest average freight value - sort in desc limit 5 
+-- or Top 5 states with lowest average freight value - sort in desc limit 5 
+
+
+WITH CTE1 AS (SELECT customer_id,order_id, order_purchase_timestamp, order_delivered_customer_date, 
+order_estimated_delivery_date FROM `extended-ripple-386509.Target.orders`
+WHERE order_delivered_customer_date IS NOT NULL AND 
+order_estimated_delivery_date IS NOT NULL),
+CTE2 AS (SELECT *,
+DATE_DIFF(order_delivered_customer_date, order_purchase_timestamp, DAY) AS time_to_delivery,
+DATE_DIFF (order_delivered_customer_date, order_estimated_delivery_date, DAY) AS diff_estimated_delivery FROM CTE1 AS T1)
+
+SELECT c.customer_state,ROUND(AVG(freight_value),2) AS avg_ot_fv FROM `extended-ripple-386509.Target.customers` AS c
+JOIN CTE2 ON CTE2.customer_id = c.customer_id
+JOIN `extended-ripple-386509.Target.order_items` AS ot ON CTE2.order_id = ot.order_id
+GROUP BY c.customer_state
+ORDER BY avg_ot_fv DESC
+LIMIT 5
+
+
+-- Top 5 states with highest average freight value - sort in asc limit 5 
+-- or -- Top 5 states with lowest average freight value - sort in asc limit 5 
+
+WITH CTE1 AS (SELECT customer_id,order_id, order_purchase_timestamp, order_delivered_customer_date, 
+order_estimated_delivery_date FROM `extended-ripple-386509.Target.orders`
+WHERE order_delivered_customer_date IS NOT NULL AND 
+order_estimated_delivery_date IS NOT NULL),
+CTE2 AS (SELECT *,
+DATE_DIFF(order_delivered_customer_date, order_purchase_timestamp, DAY) AS time_to_delivery,
+DATE_DIFF (order_delivered_customer_date, order_estimated_delivery_date, DAY) AS diff_estimated_delivery FROM CTE1 AS T1)
+
+SELECT c.customer_state,ROUND(AVG(freight_value),2) AS avg_ot_fv FROM `extended-ripple-386509.Target.customers` AS c
+JOIN CTE2 ON CTE2.customer_id = c.customer_id
+JOIN `extended-ripple-386509.Target.order_items` AS ot ON CTE2.order_id = ot.order_id
+GROUP BY c.customer_state
+ORDER BY avg_ot_fv 
+LIMIT 5
+
+-- Top 5 states with highest/lowest average time to delivery
+-- Top 5 states with highest average time to delivery
+
+WITH CTE1 AS (SELECT customer_id,order_id, order_purchase_timestamp, order_delivered_customer_date, 
+order_estimated_delivery_date FROM `extended-ripple-386509.Target.orders`
+WHERE order_delivered_customer_date IS NOT NULL AND 
+order_estimated_delivery_date IS NOT NULL),
+CTE2 AS (SELECT *,
+DATE_DIFF(order_delivered_customer_date, order_purchase_timestamp, DAY) AS time_to_delivery,
+DATE_DIFF (order_delivered_customer_date, order_estimated_delivery_date, DAY) AS diff_estimated_delivery FROM CTE1 AS T1) 
+
+SELECT c.customer_state, ROUND(AVG(CTE2.time_to_delivery),2) AS avg_time_to_delivery , 
+ FROM `extended-ripple-386509.Target.customers` AS c
+JOIN CTE2 ON CTE2.customer_id = c.customer_id
+JOIN `extended-ripple-386509.Target.order_items` AS ot ON CTE2.order_id = ot.order_id
+GROUP BY c.customer_state
+ORDER BY avg_time_to_delivery DESC
+LIMIT 5
+
+-- Top 5 states with lowest average time to delivery
+
+WITH CTE1 AS (SELECT customer_id,order_id, order_purchase_timestamp, order_delivered_customer_date, 
+order_estimated_delivery_date FROM `extended-ripple-386509.Target.orders`
+WHERE order_delivered_customer_date IS NOT NULL AND 
+order_estimated_delivery_date IS NOT NULL),
+CTE2 AS (SELECT *,
+DATE_DIFF(order_delivered_customer_date, order_purchase_timestamp, DAY) AS time_to_delivery,
+DATE_DIFF (order_delivered_customer_date, order_estimated_delivery_date, DAY) AS diff_estimated_delivery FROM CTE1 AS T1) 
+
+SELECT c.customer_state, ROUND(AVG(CTE2.time_to_delivery),2) AS avg_time_to_delivery , 
+ FROM `extended-ripple-386509.Target.customers` AS c
+JOIN CTE2 ON CTE2.customer_id = c.customer_id
+JOIN `extended-ripple-386509.Target.order_items` AS ot ON CTE2.order_id = ot.order_id
+GROUP BY c.customer_state
+ORDER BY avg_time_to_delivery 
+LIMIT 5
+
+
+-- Top 5 states where delivery is really fast/ not so fast compared to estimated date
+
+-- Top 5 states where delivery is really fast compared to estimated date
+
+WITH CTE1 AS (SELECT customer_id,order_id, order_purchase_timestamp, order_delivered_customer_date, 
+order_estimated_delivery_date FROM `extended-ripple-386509.Target.orders`
+WHERE order_delivered_customer_date IS NOT NULL AND 
+order_estimated_delivery_date IS NOT NULL),
+CTE2 AS (SELECT *,
+DATE_DIFF(order_delivered_customer_date, order_purchase_timestamp, DAY) AS time_to_delivery,
+DATE_DIFF (order_delivered_customer_date, order_estimated_delivery_date, DAY) AS diff_estimated_delivery FROM CTE1 AS T1) 
+
+SELECT c.customer_state, 
+ROUND(AVG(CTE2.diff_estimated_delivery),2) AS avg_diff_estimated_delivery FROM `extended-ripple-386509.Target.customers` AS c
+JOIN CTE2 ON CTE2.customer_id = c.customer_id
+JOIN `extended-ripple-386509.Target.order_items` AS ot ON CTE2.order_id = ot.order_id
+GROUP BY c.customer_state
+ORDER BY avg_diff_estimated_delivery DESC
+LIMIT 5
+
+
+-- Top 5 states where delivery is really not so fast compared to estimated date
+
+WITH CTE1 AS (SELECT customer_id,order_id, order_purchase_timestamp, order_delivered_customer_date, 
+order_estimated_delivery_date FROM `extended-ripple-386509.Target.orders`
+WHERE order_delivered_customer_date IS NOT NULL AND 
+order_estimated_delivery_date IS NOT NULL),
+CTE2 AS (SELECT *,
+DATE_DIFF(order_delivered_customer_date, order_purchase_timestamp, DAY) AS time_to_delivery,
+DATE_DIFF (order_delivered_customer_date, order_estimated_delivery_date, DAY) AS diff_estimated_delivery FROM CTE1 AS T1) 
+
+SELECT c.customer_state, 
+ROUND(AVG(CTE2.diff_estimated_delivery),2) AS avg_diff_estimated_delivery FROM `extended-ripple-386509.Target.customers` AS c
+JOIN CTE2 ON CTE2.customer_id = c.customer_id
+JOIN `extended-ripple-386509.Target.order_items` AS ot ON CTE2.order_id = ot.order_id
+GROUP BY c.customer_state
+ORDER BY avg_diff_estimated_delivery 
+LIMIT 5
+
+
+-- 6. Payment type analysis:
+-- Month over Month count of orders for different payment types
+
+-- For each month of each year, I need to find the count of orders for diff payment types.
+
+WITH CTE1 AS (SELECT EXTRACT (MONTH FROM o.order_purchase_timestamp AT TIME ZONE "UTC") AS month, 
+       EXTRACT (YEAR FROM o.order_purchase_timestamp AT TIME ZONE "UTC") AS year,
+       p.payment_type,
+       COUNT(*) OVER (PARTITION BY EXTRACT (MONTH FROM o.order_purchase_timestamp AT TIME ZONE "UTC"), p.payment_type ORDER BY o.order_purchase_timestamp ) AS count_of_orders
+FROM `extended-ripple-386509.Target.payments` AS p
+LEFT JOIN `extended-ripple-386509.Target.orders` AS o ON p.order_id = o.order_id)
+
+
+SELECT month, year, payment_type, SUM(count_of_orders) AS total_count_of_orders FROM CTE1
+GROUP BY payment_type, year, month
+ORDER BY year, month
+
+-- checking with the below query.
+WITH CTE1 AS (SELECT EXTRACT (MONTH FROM o.order_purchase_timestamp AT TIME ZONE "UTC") AS month, 
+       EXTRACT (YEAR FROM o.order_purchase_timestamp AT TIME ZONE "UTC") AS year, 
+       p.payment_type, COUNT(*) OVER (PARTITION BY EXTRACT (YEAR FROM o.order_purchase_timestamp AT TIME ZONE "UTC"), EXTRACT (MONTH FROM o.order_purchase_timestamp AT TIME ZONE "UTC"), 
+       p.payment_type ORDER BY o.order_purchase_timestamp ) AS count_of_orders FROM `extended-ripple-386509.Target.payments` AS p
+JOIN `extended-ripple-386509.Target.orders` AS o ON p.order_id = o.order_id
+WHERE  EXTRACT (MONTH FROM o.order_purchase_timestamp AT TIME ZONE "UTC") = 1 AND 
+       EXTRACT (YEAR FROM o.order_purchase_timestamp AT TIME ZONE "UTC") = 2017 AND 
+       payment_type = "UPI")
+SELECT month, year, payment_type, SUM(count_of_orders) FROM CTE1 
+GROUP BY payment_type, year, month
+
+-- Count of orders based on the no. of payment installments
+
+SELECT 
+ DISTINCT p.payment_installments, 
+ COUNT(*) AS count_of_orders
+FROM `extended-ripple-386509.Target.payments` AS p 
+JOIN `extended-ripple-386509.Target.orders` AS o ON p.order_id = o.order_id
+GROUP BY p.payment_installments
+ORDER BY p.payment_installments
+
+-- to check 
+
+SELECT * FROM `extended-ripple-386509.Target.payments`
+WHERE payment_installments = 23
+
+
+
+SELECT EXTRACT (YEAR FROM order_purchase_timestamp AT TIME ZONE "UTC") as year FROM `extended-ripple-386509.Target.orders`
+
+
+-- To find actionable insights 
+
+
+SELECT ROUND(SUM(p.payment_value),2) AS total_amount FROM `extended-ripple-386509.Target.customers` AS c
+JOIN `extended-ripple-386509.Target.orders` AS o ON c.customer_id = o.customer_id
+JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+WHERE o.order_purchase_timestamp BETWEEN "2017-01-01 00:00:00" AND "2017-10-31 23:59:59"
+
+SELECT ROUND(SUM(p.payment_value),2) AS total_amount FROM `extended-ripple-386509.Target.customers` AS c
+JOIN `extended-ripple-386509.Target.orders` AS o ON c.customer_id = o.customer_id
+JOIN `extended-ripple-386509.Target.payments` AS p ON o.order_id = p.order_id
+WHERE o.order_purchase_timestamp BETWEEN "2018-01-01 00:00:00" AND "2018-10-31 23:59:59"
